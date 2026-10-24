@@ -19,7 +19,7 @@
 
 | Phase | Name | Status | Date finished |
 |---|---|---|---|
-| 0 | Foundations and environment | ☐ | |
+| 0 | Foundations and environment | ✅ | |
 | 1 | Repository, tooling, CI, Docker | ☐ | |
 | 2 | Database and backend skeleton | ☐ | |
 | 3 | News collection | ☐ | |
