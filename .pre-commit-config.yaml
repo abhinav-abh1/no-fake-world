@@ -15,7 +15,7 @@ repos:
         files: ^backend/
       - id: mypy
         name: mypy
-        entry: uv run --project backend mypy backend/app
+        entry: uv run --project backend mypy --config-file backend/pyproject.toml backend/app
         language: system
         pass_filenames: false
         files: ^backend/
