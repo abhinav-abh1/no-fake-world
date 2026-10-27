@@ -19,8 +19,8 @@
 
 | Phase | Name | Status | Date finished |
 |---|---|---|---|
-| 0 | Foundations and environment | ✅ | |
-| 1 | Repository, tooling, CI, Docker | ☐ | |
+| 0 | Foundations and environment | ✅ |2026-10-26 |
+| 1 | Repository, tooling, CI, Docker | ✅ | 2026-10-28|
 | 2 | Database and backend skeleton | ☐ | |
 | 3 | News collection | ☐ | |
 | 4 | Cleaning, dedup, embeddings, vector search | ☐ | |
