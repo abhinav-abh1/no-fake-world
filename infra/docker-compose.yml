@@ -21,6 +21,9 @@ services:
     build:
       context: ../backend
     container_name: nfw-api
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://nfw:${POSTGRES_PASSWORD:-nfw_dev_password}@db:5432/nfw
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
