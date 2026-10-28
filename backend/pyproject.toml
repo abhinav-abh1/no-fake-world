@@ -11,6 +11,7 @@ dependencies = [
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.16.1",
     "sqlalchemy>=2.1.6",
+    "trafilatura>=2.3.1",
     "uvicorn[standard]>=0.54.0",
 ]
 
@@ -43,5 +44,5 @@ select = ["E", "F", "I", "UP", "B"]
 "tests/conftest.py" = ["E402"]
 
 [[tool.mypy.overrides]]
-module = ["feedparser", "feedparser.*"]
+module = ["feedparser", "feedparser.*", "trafilatura", "trafilatura.*"]
 ignore_missing_imports = true
