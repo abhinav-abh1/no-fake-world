@@ -3,12 +3,14 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Numeric,
     String,
     Text,
@@ -75,3 +77,24 @@ class RunLog(Base):
     items_out: Mapped[int | None]
     errors: Mapped[list[Any] | None] = mapped_column(JSONB)
     token_cost: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
+
+
+class ArticleEmbedding(Base):
+    """The meaning of an article as 384 numbers. We store which model made it."""
+
+    __tablename__ = "article_embeddings"
+    __table_args__ = (
+        Index(
+            "ix_article_embeddings_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    article_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True
+    )
+    model_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    embedding: Mapped[Any] = mapped_column(Vector(384))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

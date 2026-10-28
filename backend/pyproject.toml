@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.162.0",
     "feedparser>=6.0.14",
     "httpx>=0.28.1",
+    "pgvector>=0.5.1",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.16.1",
     "sqlalchemy>=2.1.6",
@@ -25,6 +26,9 @@ dev = [
     "pre-commit>=4.7.0",
     "pytest>=9.1.1",
     "ruff>=0.17.2",
+]
+ml = [
+    "sentence-transformers>=6.2.0",
 ]
 
 [tool.pytest.ini_options]
@@ -44,5 +48,10 @@ select = ["E", "F", "I", "UP", "B"]
 "tests/conftest.py" = ["E402"]
 
 [[tool.mypy.overrides]]
-module = ["feedparser", "feedparser.*", "trafilatura", "trafilatura.*"]
+module = [
+    "feedparser", "feedparser.*",
+    "trafilatura", "trafilatura.*",
+    "pgvector", "pgvector.*",
+    "sentence_transformers", "sentence_transformers.*",
+]
 ignore_missing_imports = true
