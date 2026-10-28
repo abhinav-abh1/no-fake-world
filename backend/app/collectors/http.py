@@ -4,7 +4,7 @@ import httpx
 USER_AGENT = "NoFakeWorldBot/0.1 (+https://github.com/abhinav-abh1/no-fake-world)"
 
 
-def make_client() -> httpx.Client:
+def make_client(transport: httpx.BaseTransport | None = None) -> httpx.Client:
     return httpx.Client(
         headers={
             "User-Agent": USER_AGENT,
@@ -12,4 +12,5 @@ def make_client() -> httpx.Client:
         },
         timeout=httpx.Timeout(15.0),
         follow_redirects=True,
+        transport=transport,
     )
