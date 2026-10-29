@@ -1,0 +1,14 @@
+query,kind,expect
+who won the Israel election,topical,election coverage
+oil deal with Venezuela,topical,Venezuela oil stories
+Brazil presidential election result,topical,Brazil election
+cost of living and housing,abstract,inflation and housing costs
+Ebola outbreak Congo,topical,Ebola case counts in DR Congo
+Mbappe Mao apology,topical,Mbappé remark and Chinese sponsors dropping him
+disease outbreak spreading in Africa,abstract,Ebola coverage even without the word Ebola
+athletes causing controversy abroad,abstract,Mbappé Mao remark
+military strikes on boats,abstract,US strike on alleged drug vessel
+Nord Stream sabotage trial,topical,Germany trial of suspected pipeline saboteur
+recipe for chocolate cake,offtopic,nothing
+knitting patterns for beginners,offtopic,nothing
+how to train a puppy,offtopic,nothing

@@ -7,6 +7,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -16,10 +17,17 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+
+# Postgres builds this column itself from the text columns. Title words count most.
+SEARCH_VECTOR_SQL = (
+    "setweight(to_tsvector('english', coalesce(title, '')), 'A') || "
+    "setweight(to_tsvector('english', coalesce(snippet, '')), 'B') || "
+    "setweight(to_tsvector('english', coalesce(left(body_text, 20000), '')), 'C')"
+)
 
 
 class Source(Base):
@@ -45,6 +53,7 @@ class Article(Base):
     """One article as fetched from a source."""
 
     __tablename__ = "articles"
+    __table_args__ = (Index("ix_articles_search_vector", "search_vector", postgresql_using="gin"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sources.id"), index=True)
@@ -60,6 +69,9 @@ class Article(Base):
     simhash: Mapped[int | None] = mapped_column(BigInteger)
     is_duplicate_of_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("articles.id"))
     status: Mapped[str] = mapped_column(String(20), server_default="fetched")
+    search_vector: Mapped[Any] = mapped_column(
+        TSVECTOR, Computed(SEARCH_VECTOR_SQL, persisted=True), deferred=True
+    )
 
 
 class RunLog(Base):

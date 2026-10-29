@@ -15,3 +15,12 @@ Timing: model load 167 s (first download only), embedding 328 articles in 10.3 s
 - Scores of relevant and irrelevant results overlap, so a plain threshold will not work.
 - The same outlet appears several times: count distinct outlets as independent sources.
 - Possible near-duplicate wire stories: handle in dedup (Phase 4B).
+
+
+## Hybrid search (2026-10-28)
+- Keyword: Postgres full-text (english config, stemming); all words must appear.
+- Vector: e5 cosine similarity.
+- Fusion: reciprocal rank fusion (k=60); no-match rule: meaning-only hits need cosine >= <your value>.
+- Compared on <N> queries. Where keyword won: <...>. Where vector won: <...>. Where hybrid helped: <...>.
+- Off-topic queries (<3>): best vector scores <values>; topical queries: <range>. Threshold chosen: <value>.
+- Limits: English-only keyword search; threshold tuned on <N> queries; copies hidden via dedup marks.
