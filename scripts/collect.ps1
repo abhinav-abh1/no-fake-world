@@ -14,3 +14,4 @@ function Step($label, [scriptblock]$command) {
 Step "collect" { uv run python -m app.collectors.run }
 Step "extract" { uv run python -m app.collectors.extract_run --limit 20 }
 Step "embed" { uv run --group ml python -m app.embeddings.embed_articles --limit 400 }
+Step "dedup" { uv run python -m app.dedup.mark_run }
