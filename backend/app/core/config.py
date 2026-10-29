@@ -7,5 +7,9 @@ class Settings(BaseSettings):
     # Local dev default: the Docker database on host port 5433.
     database_url: str = "postgresql+psycopg://nfw:nfw_dev_password@127.0.0.1:5433/nfw"
 
+    # Duplicate detection. Starting guesses: tune them on labelled pairs (evals/dedup_pairs.csv).
+    dedup_min_cosine: float = 0.95
+    dedup_min_jaccard: float = 0.3
+
 
 settings = Settings()
