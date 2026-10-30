@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     dedup_min_jaccard: float = 0.3
 
     # Meaning-only matches below this similarity are not shown. Placeholder: tune on real queries.
-    search_min_vector_score: float = 0.80
+    search_min_vector_score: float = 0.83
 
 
 settings = Settings()
