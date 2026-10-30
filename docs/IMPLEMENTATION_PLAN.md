@@ -23,7 +23,7 @@
 | 1 | Repository, tooling, CI, Docker | ✅ |2026-10-28|
 | 2 | Database and backend skeleton | ✅ |2026-10-28 |
 | 3 | News collection | ✅ |2026-10-28 |
-| 4 | Cleaning, dedup, embeddings, vector search | ☐ | |
+| 4 | Cleaning, dedup, embeddings, vector search | ✅ |2026-10-30 |
 | 5 | Story grouping and timelines | ☐ | |
 | 6 | Frontend MVP | ☐ | |
 | 7 | LLM gateway and claim extraction | ☐ | |
