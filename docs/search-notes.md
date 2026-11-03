@@ -41,8 +41,8 @@ What I saw:
   0.001). After adding 7 more off-topic queries the highest rose to 0.813 (hiking trails in the
   Alps). I moved the threshold to 0.83, the middle of the gap between 0.813 and 0.844.
 - Result: all 10 off-topic queries return "no good match", all 10 real queries return results.
-- Caveat: this is 20 queries on one week of data. More off-topic queries would probably find a
-  score above 0.83, so the threshold is a cautious guess, not a guarantee.
+- Caveat: this is 20 queries on 333 articles, mostly from two days (27 and 28 October).
+  More off-topic queries would probably find a score above 0.83, so the threshold is a cautious guess, not a guarantee.
 
 ## Known problems
 - Only The Guardian has full text, so keyword matches on generic words are all Guardian

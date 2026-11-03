@@ -9,6 +9,7 @@ from app.dedup.pairs import find_pairs
 from app.embeddings.model import MODEL_NAME
 
 CSV_PATH = Path(__file__).resolve().parents[3] / "evals" / "dedup_pairs.csv"
+STORY_CSV_PATH = CSV_PATH.with_name("story_pairs.csv")
 FIELDS = ["id_a", "id_b", "cosine", "jaccard", "same_source", "title_a", "title_b", "label"]
 
 
@@ -49,12 +50,17 @@ def export(db: Session, path: Path, model_name: str, min_cosine: float, max_pair
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max", type=int, default=60)
-    parser.add_argument("--min-cosine", type=float, default=0.90)
+    parser.add_argument("--kind", choices=["copy", "story"], default="copy")
+    parser.add_argument("--max", type=int)
+    parser.add_argument("--min-cosine", type=float)
     args = parser.parse_args()
+    story = args.kind == "story"
+    path = STORY_CSV_PATH if story else CSV_PATH
+    max_pairs = args.max or (80 if story else 60)
+    min_cosine = args.min_cosine or (0.82 if story else 0.90)
     with SessionLocal() as db:
-        total = export(db, CSV_PATH, MODEL_NAME, args.min_cosine, args.max)
-    print(f"{total} pairs in {CSV_PATH}")
+        total = export(db, path, MODEL_NAME, min_cosine, max_pairs)
+    print(f"{total} pairs in {path}")
 
 
 if __name__ == "__main__":
