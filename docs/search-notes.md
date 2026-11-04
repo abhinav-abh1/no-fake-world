@@ -1,9 +1,10 @@
-# Search notes (2026-10-30)
+# Search notes (updated 2026-11-03)
 
 ## Embeddings
 - Model: intfloat/multilingual-e5-small (384 dimensions), run on CPU.
-- Timing: first model download 167 s (one time). Embedding 328 articles took 10.3 s
-  (about 32 articles per second). Later runs load the model from disk in about 15 s.
+- Timing: first model download 167 s (one time). Embedding 328 articles took 10.3 s (about 32
+  articles per second); a later batch of 224 articles took 8.2 s (about 27 per second). Loading the
+  model from disk takes 15 to 50 s.
 - Scores from this model sit in a narrow high band, so only the ranking matters, not the numbers.
 
 ## First look: meaning search only (4 queries)
@@ -32,7 +33,8 @@ What I saw:
   were all Mbappe stories (likely a stemming mismatch between apology and apologises).
 - Vector wins on abstract queries: "disease outbreak spreading in Africa" found the Ebola
   coverage without the word Ebola. But it has a weak tail: for "athletes causing controversy
-  abroad" the top hit was right (0.844) and ranks 2 and 3 were not about athletes.
+  abroad" the top hit was right (0.844) and ranks 2 and 3 were only loosely related (a sports
+  journalist's case, a Eurovision story).
 - Hybrid combined both and returned nothing for off-topic queries.
 
 ## No-match threshold
@@ -41,8 +43,9 @@ What I saw:
   0.001). After adding 7 more off-topic queries the highest rose to 0.813 (hiking trails in the
   Alps). I moved the threshold to 0.83, the middle of the gap between 0.813 and 0.844.
 - Result: all 10 off-topic queries return "no good match", all 10 real queries return results.
-- Caveat: this is 20 queries on 333 articles, mostly from two days (27 and 28 October).
-  More off-topic queries would probably find a score above 0.83, so the threshold is a cautious guess, not a guarantee.
+- Caveat: this is 20 queries on 333 articles, 226 of them from 26-28 October (the rest are older
+  items that feeds still listed). More off-topic queries would probably find a score above 0.83,
+  so the threshold is a cautious guess, not a guarantee.
 
 ## Known problems
 - Only The Guardian has full text, so keyword matches on generic words are all Guardian
@@ -54,6 +57,7 @@ What I saw:
 - A relative cutoff (drop results far below the best score) might remove the weak tail. Not tried.
 - The search is a command line tool for now. A web endpoint needs the model inside the API
   container, which is a deployment decision for later.
+- The threshold was set on 333 articles and has not been re-checked on the larger data yet.
 
 ## Reproduce
     uv run --group ml python -m app.embeddings.search_cli "who won the Israel election"

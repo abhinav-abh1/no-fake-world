@@ -110,3 +110,35 @@ class ArticleEmbedding(Base):
     model_name: Mapped[str] = mapped_column(String(100), primary_key=True)
     embedding: Mapped[Any] = mapped_column(Vector(384))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Story(Base):
+    """A storyline: articles about one news event and its direct developments."""
+
+    __tablename__ = "stories"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(Text)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    article_count: Mapped[int]
+    outlet_count: Mapped[int]
+    centroid: Mapped[Any] = mapped_column(Vector(384))
+    parent_story_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("stories.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class StoryArticle(Base):
+    """Which story an article belongs to. An article is in at most one story."""
+
+    __tablename__ = "story_articles"
+    __table_args__ = (Index("ix_story_articles_article_id", "article_id", unique=True),)
+
+    story_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("stories.id", ondelete="CASCADE"), primary_key=True
+    )
+    article_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True
+    )

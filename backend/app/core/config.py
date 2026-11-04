@@ -14,5 +14,10 @@ class Settings(BaseSettings):
     # Meaning-only matches below this similarity are not shown. Placeholder: tune on real queries.
     search_min_vector_score: float = 0.83
 
+    # Story grouping: average cosine similarity needed inside a story, time window, history length.
+    story_min_similarity: float = 0.85
+    story_window_hours: float = 72.0
+    story_days: int = 7
+
 
 settings = Settings()
