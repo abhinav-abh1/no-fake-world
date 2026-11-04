@@ -11,6 +11,7 @@ dependencies = [
     "pgvector>=0.5.1",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.16.1",
+    "scipy>=1.18.1",
     "sqlalchemy>=2.1.6",
     "trafilatura>=2.3.1",
     "uvicorn[standard]>=0.54.0",
@@ -53,5 +54,6 @@ module = [
     "trafilatura", "trafilatura.*",
     "pgvector", "pgvector.*",
     "sentence_transformers", "sentence_transformers.*",
+    "scipy", "scipy.*",
 ]
 ignore_missing_imports = true
