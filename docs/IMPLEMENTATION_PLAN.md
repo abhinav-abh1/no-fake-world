@@ -926,7 +926,6 @@ If you fall behind, **cut features, not tests**: first drop MCP (Phase 13), then
 
 | Date | Phase | What I did | What is next |
 |---|---|---|---|
-| | | | |
 
 ### Decision log (keep each entry short)
 

@@ -57,8 +57,16 @@ What I saw:
 - A relative cutoff (drop results far below the best score) might remove the weak tail. Not tried.
 - The search is a command line tool for now. A web endpoint needs the model inside the API
   container, which is a deployment decision for later.
-- The threshold was set on 333 articles and has not been re-checked on the larger data yet.
 
+## Re-check on larger data (2026-11-06)
+- Corpus grew from 333 to more than 1,100 articles.
+- Off-topic best cosine: 0.787 to 0.816 (the chocolate cake query is highest). Real queries best
+  cosine: 0.856 to 0.940. Threshold 0.83 still separates them: 0.014 above the highest off-topic
+  score and 0.026 below the lowest real query. All 10 off-topic queries still return "no good match".
+- Trend: the highest off-topic score rose from 0.799 (333 articles) to 0.813 and now 0.816,
+  because a bigger corpus always has a closer neighbour. A fixed threshold will keep eroding, so
+  the off-topic queries should become an automated check that runs as the corpus grows (Phase 12).
+  
 ## Reproduce
     uv run --group ml python -m app.embeddings.search_cli "who won the Israel election"
     uv run --group ml python -m app.embeddings.compare_cli
