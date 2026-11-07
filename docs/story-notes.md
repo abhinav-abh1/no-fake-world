@@ -100,32 +100,51 @@ What I read (top stories by number of outlets, all with 6 or 7 outlets):
 - Israel election coverage is split by the 72-hour window into election day (27 Oct) and the
   aftermath (28-30 Oct). This is intended: a timeline will link them (step 5D).
 
-## To verify
-- evaluate (21 days) reported largest group 36 at 0.85, group_run (7 days) reported 54. They ran on
-  different article sets minutes apart. Re-run both back to back: <result>.
-- Stories with at least 3 outlets: <N> stories covering <N> articles.
+## Checks after 5B (2026-11-06)
+- Check A: group_run and evaluate --days 7 on the same 814 articles agree exactly (361 stories,
+  largest 70 at similarity 0.85). The earlier 36 vs 54 gap was different article sets, not a bug.
+  evaluate --days 7 cannot score my labelled pairs (all from 27-28 Oct); use --days 14.
+- Check B: stories by number of distinct outlets (7 days, 361 stories, 814 articles):
+  1 outlet: 261 stories (306 articles); 2: 53 (127); 3: 19 (69); 4: 13 (85); 5: 6 (45); 6: 6 (80);
+  7: 2 (32); 8: 1 (70). Stories with 3 or more outlets: 47 (381 articles, 47%), about 7 a day.
+  With 2 or more: 100 stories (62% of articles).
+- Check C: the 20 singletons closest to a story. About 14 are right (Bangladesh wage board, Binance
+  fake job interviews, US midterms pieces, Israel opposition, Florida jet crash). About 6 are
+  wrong: North Korea missile test vs the Binance story (0.913), a Russian drone near Moscow vs the
+  aid-centre strike (0.890), a German campus protest vs a cost-of-living protest (0.889), India-China
+  vs China-Iran diplomacy (0.887), UK PMQs vs Burnham on the EU (0.886). Wrong and right scores
+  overlap (0.886-0.918), so I will not attach singletons by centroid similarity.
+- Large stories contain developments: the largest group is 186 articles at 0.80, 70 at 0.85,
+  50 at 0.86, 23 at 0.87, 16 at 0.88. The midterms storyline splits into developments at a
+  stricter cut, which is the basis for timeline entries (step 5D).
 
 ## Problems found and plan
 1. group_run deletes ALL stories on each run and rebuilds only the last 7 days. Older stories
-   disappear, ids change on every run, and anything attached to a story (claims, articles) would be
-   deleted with it. Do not schedule group_run. Fix in 5C: stable ids, freeze stories older than the
-   window, regroup only recent days.
-2. outlet_count counts distinct outlets, not independent confirmations. Only 8 outlets, and several
-   reuse wire copy (AP, AFP, Reuters). Needs wire detection before verification (Phase 8).
-3. Story titles are one outlet's headline and can carry its framing ("set to upend Trump
-   presidency", "Vile terrorist attack"). They are working labels only; the neutral headline is
-   written with the article (Phase 10).
-4. 68% of stories are singletons. Plan a publication rule (minimum number of outlets) and test
-   attaching a singleton to its nearest story when similarity >= 0.82.
-5. The method builds an n x n distance matrix, so memory and time grow with the square of the
-   articles. Fine at about 1,100; regroup only recent days when it grows.
-6. Very large stories (midterms, 54 articles) need internal structure: cut the same tree at a
-   stricter similarity to get "developments" for the timeline.
+   disappear, ids change on every run, and anything attached to a story (claims, articles) would
+   be deleted with it. Do not schedule group_run. Fix in 5C: stable ids, freeze stories older than
+   the window, regroup only recent days.
+2. outlet_count counts distinct outlets, not independent confirmations. Plan: outlets connected by
+   a cross-outlet copy link inside a story count as one origin ("independent outlets"). One real
+   cross-outlet pair exists so far (California billionaire tax).
+3. Story titles are one outlet's headline and can carry its framing. Working labels only; the
+   neutral headline is written with the article (Phase 10).
+4. Publication rule: a story needs at least 3 distinct outlets (47 of 361 stories in 7 days).
+   Stories with 2 outlets are "developing".
+5. Singletons stay singletons (see Check C).
+6. Dedup hides copies, and the stories exclude copies. Two flagged pairs were different pages
+   (a results page behind a live blog), so a real article went missing from the midterms story.
+   Plan: dedup v2 (time gate), and keep copies in stories.
+7. The method builds an n x n distance matrix, so memory and time grow with the square of the
+   articles. Fine at about 1,000; regroup only recent days when it grows.
+8. Collection is irregular (see data-notes.md) and biased against outlets with short feeds.
+9. Very large stories need internal structure: cut the same tree at a stricter similarity for
+   "developments".
 
 ## Next
-- 5C: stable story ids, importance ranking by independent outlets and recency, publication rule,
-  singleton attach.
-- 5D: timelines linking stories over days.
+- Dedup v2, then 5C: stable story ids, importance ranking by independent outlets and recency,
+  publication rule of 3 outlets.
+- 5D: timelines linking stories over days, developments inside large stories.
+- Move ingestion to a server.
 
 ## Reproduce
     uv run python -m app.dedup.export_pairs --kind story
