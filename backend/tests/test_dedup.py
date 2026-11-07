@@ -85,3 +85,29 @@ def test_reprinted_story_is_marked_and_chains_to_the_root() -> None:
         assert copy2.is_duplicate_of_id == first.id
         assert other.is_duplicate_of_id is None
         assert (result.near, again.near) == (2, 2)
+
+
+def _same_outlet_pair(minutes_apart: int) -> tuple[Article, Article]:
+    with SessionLocal() as db:
+        source = Source(name="A", feed_url="https://a.example/rss")
+        db.add(source)
+        db.commit()
+        first = _article(source, 1, "PM announces energy bill plan", WIRE, 0)
+        second = _article(source, 2, "PM announces energy bill plan", WIRE, minutes_apart)
+        db.add_all([first, second])
+        db.commit()
+        embed_pending(db, FakeEmbedder())
+        mark_duplicates(db, FakeEmbedder.name, 0.9, 0.5)
+        db.refresh(first)
+        db.refresh(second)
+        return first, second
+
+
+def test_same_outlet_relisting_minutes_apart_is_a_copy() -> None:
+    first, second = _same_outlet_pair(minutes_apart=5)
+    assert second.is_duplicate_of_id == first.id
+
+
+def test_same_outlet_page_hours_later_is_not_a_copy() -> None:
+    _, second = _same_outlet_pair(minutes_apart=180)
+    assert second.is_duplicate_of_id is None
