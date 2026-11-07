@@ -57,6 +57,18 @@ when the verifier later counts independent confirmations.
   (7 "missed copies"), which exposed it. I relabelled them 0.
 - Caveat: the 18 pairs were selected by the rule itself, so recall is not measured.
 
+## Dedup v2: time gate (2026-11-07)
+- Rule change: a near copy must also be close in time. Same outlet within 30 minutes (a re-listing),
+  other outlets within 6 hours (a reprint). The values are fitted by eye to 18 pairs, so they are a
+  hypothesis, not a measured result. Errors are not symmetric: a missed copy leaves one extra
+  article, a false merge hides a real one.
+- Result: exact=0, near=20 on the current corpus (it grew since the 18 flagged earlier, so the
+  numbers are not comparable). Every flagged same-outlet pair is within 30 minutes and every
+  cross-outlet pair within 6 hours (checked by query).
+- The Hindu results page ("Full list of winners") and the Al Jazeera live blog ("Polls due to
+  open") are no longer hidden.
+- Still open: the "original" is simply the earliest article, even when the later one is an update.
+
 ## Mistakes and limits
 - Precision is 16 of 18 on the flagged pairs. I cannot measure recall: I only know about copies
   that were flagged or that happened to be in my labelled pairs.
@@ -68,9 +80,6 @@ when the verifier later counts independent confirmations.
   is the one readers want.
 
 ## Next
-- Dedup v2: only mark near copies that are close in time (same outlet within 30 minutes, other
-  outlets within 6 hours). This is fitted by eye to 18 pairs, so it is a hypothesis. Errors are
-  not symmetric: a missed copy leaves one extra article, a false merge hides a real one.
 - Use cross-outlet copy links to compute independent outlets for a story (step 5C).
 - Compare body text only (the title lowered the Jaccard of the first true copy).
 ## Reproduce

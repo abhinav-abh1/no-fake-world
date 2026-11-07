@@ -8,12 +8,19 @@ $env:HF_HUB_OFFLINE = "1"
 
 function Step($label, [scriptblock]$command) {
     & $command *>> $log
-    if ($LASTEXITCODE -ne 0) { "FAILED: $label (exit code $LASTEXITCODE)" *>> $log }
+    if ($LASTEXITCODE -ne 0) {
+        "FAILED: $label (exit code $LASTEXITCODE)" *>> $log
+        return $false
+    }
+    return $true
 }
 
 "=== $(Get-Date -Format o) ===" *>> $log
-Step "database" { docker compose -f $compose up -d --wait db }
-Step "collect" { uv run python -m app.collectors.run }
-Step "extract" { uv run python -m app.collectors.extract_run --limit 20 }
-Step "embed" { uv run --group ml python -m app.embeddings.embed_articles --limit 400 }
-Step "dedup" { uv run python -m app.dedup.mark_run }
+if (-not (Step "database" { docker compose -f $compose up -d --wait db })) {
+    "SKIPPED: database not available (is Docker Desktop running?). Nothing else was run." *>> $log
+    exit 1
+}
+$null = Step "collect" { uv run python -m app.collectors.run }
+$null = Step "extract" { uv run python -m app.collectors.extract_run --limit 20 }
+$null = Step "embed" { uv run --group ml python -m app.embeddings.embed_articles --limit 400 }
+$null = Step "dedup" { uv run python -m app.dedup.mark_run }

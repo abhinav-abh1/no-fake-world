@@ -41,7 +41,7 @@ def main() -> None:
     results = []
     for cosine_step in range(0, 10):
         for jaccard_step in range(2, 10):
-            c, j = 0.90 + 0.01 * cosine_step, 0.1 * jaccard_step
+            c, j = round(0.90 + 0.01 * cosine_step, 2), round(0.1 * jaccard_step, 1)
             results.append((score(rows, c, j), c, j))
     results.sort(key=lambda item: (item[0][2], item[0][0], item[1], item[2]), reverse=True)
     print("cosine jaccard | precision recall   f1 |  tp  fp  fn")
