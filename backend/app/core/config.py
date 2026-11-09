@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     story_min_similarity: float = 0.85
     story_window_hours: float = 72.0
     story_days: int = 7
-
+    story_buffer_hours: float = 24.0
     # Near copies must also be close in time (see mark_duplicates).
     dedup_same_outlet_minutes: float = 30.0
     dedup_cross_outlet_hours: float = 6.0
