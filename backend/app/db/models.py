@@ -123,6 +123,8 @@ class Story(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     article_count: Mapped[int]
     outlet_count: Mapped[int]
+    independent_outlet_count: Mapped[int] = mapped_column(server_default="0")
+    original_count: Mapped[int] = mapped_column(server_default="0")
     centroid: Mapped[Any] = mapped_column(Vector(384))
     parent_story_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("stories.id", ondelete="SET NULL")
