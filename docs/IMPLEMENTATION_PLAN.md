@@ -946,7 +946,7 @@ If you fall behind, **cut features, not tests**: first drop MCP (Phase 13), then
 | 2026-11-07 | quality | Collector ran in only 12 of 73 hours; the `FAILED` lines were Docker Desktop not running. Added container restart policy, a database step in `collect.ps1`, task wake settings. Dedup on the larger data: 18 flagged (17 same-outlet re-listings, 1 cross-outlet); the tuner's recall of 0.72 exposed 7 pairs I had mislabelled; notes updated (16c9b06). | Dedup time gate |
 | 2026-11-08 | 4B1 fix | Dedup v2: near copies must also be close in time (same outlet within 30 minutes, other outlets within 6 hours), so a results page is no longer hidden behind a live blog. 33 tests. Restored a deleted plan line; `collect.ps1` now skips cleanly when Docker is down. | Merge it; Phase 5C-1: stable story ids |
 | 2026-11-09 | 5C-1 | Stable story ids: stories older than 96 hours are frozen, only recent articles are regrouped, and a new group keeps the id of the old story it contains at least half of. Bootstrapped 14 days (863 stories); two more runs gave created=0 removed=0 and the top ids did not change. Copies are kept inside stories. Story counts per day dip when the laptop was off. `rebuild_run` added to the hourly script. | 5C-2: independent outlets, publication rule, ranking |
-
+| 2026-11-09 | 5C-2 | Added independent_outlet_count (outlets that reprint each other count once), original_count, a publication rule of 3 independent outlets and a top_stories ranking with a preview command. A failing test exposed that the test database did not empty `stories`, so a frozen story leaked into the next test. | 5D: timelines and developments inside big stories |
 
 ### Decision log (keep each entry short)
 

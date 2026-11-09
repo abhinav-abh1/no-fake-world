@@ -163,6 +163,19 @@ What I read (top stories by number of outlets, all with 6 or 7 outlets):
 - To apply a new threshold to history: rebuild_run --since-days N. group_run deletes everything,
   so it is for experiments only.
 
+## 5C-2: independent outlets and edition ranking (2026-11-08)
+- New story fields: independent_outlet_count (outlets that reprint each other inside a story count
+  once, using the copy flags from dedup) and original_count (articles that are not copies).
+- Publication rule: at least 3 independent outlets. In the last 7 days 93 of 599 stories meet it.
+- Outlets merged by a cross-outlet copy: 9 of 938 stories, 1 outlet each (read: the merge is rare, so
+  the rule changes few results, but it does keep copy-heavy stories from passing the gate).
+- Top of the 72-hour edition list: Israel (Eisenkot tasked with forming a government; 8 independent
+  of 8 outlets, 24 originals), US midterms (7 of 7, 38 originals), Krakow shooting (7 of 7, 28 originals).
+  Observation: ties at 7 independent outlets are ordered by original_count, and only one top-10 story
+  (European air traffic, 6 independent of 7 outlets) has a merged outlet.
+- Test isolation lesson: frozen stories are never deleted, so the test database must be emptied
+  between tests; conftest did not truncate stories, which made a test see a leftover story.
+  
 ## Reproduce
     uv run python -m app.dedup.export_pairs --kind story
     uv run python -m app.dedup.label --kind story

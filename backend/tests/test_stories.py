@@ -8,7 +8,15 @@ from sqlalchemy.orm import Session
 from app.db.models import Article, Source, Story, StoryArticle
 from app.db.session import SessionLocal
 from app.embeddings.embed_articles import embed_pending
-from app.stories.group import build_stories, cluster_labels, match_clusters, rebuild_recent
+from app.stories.group import (
+    Candidate,
+    build_stories,
+    cluster_labels,
+    independent_outlets,
+    match_clusters,
+    rebuild_recent,
+)
+from app.stories.rank import top_stories
 from tests.fakes import FakeEmbedder
 
 
@@ -138,3 +146,67 @@ def test_old_stories_are_frozen_and_never_deleted() -> None:
         assert again.frozen == 1
         assert again.created == 0
         assert db.get(Story, old_story_id) is not None
+
+
+def _candidate(source: uuid.UUID, copy_of: uuid.UUID | None = None) -> Candidate:
+    return Candidate(
+        uuid.uuid4(), source, "t", datetime.now(UTC), np.ones(3), copy_of, copy_of is not None
+    )
+
+
+def test_outlets_that_reprint_each_other_count_once() -> None:
+    a, b, c = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    members = [_candidate(a), _candidate(b, copy_of=a), _candidate(c), _candidate(c)]
+    assert independent_outlets(members) == 2
+
+
+def test_a_reprint_is_in_the_story_but_not_an_independent_outlet() -> None:
+    now = datetime.now(UTC)
+    with SessionLocal() as db:
+        outlets = [Source(name=name, feed_url=f"https://{name}.example/rss") for name in "ABC"]
+        db.add_all(outlets)
+        db.commit()
+        a, b, c = outlets
+        _add(db, a, 1, "Israel election leaves no clear winner", now)
+        _add(db, b, 2, "Israel election leaves no clear winner", now)
+        _add(db, c, 3, "Israel election results show no clear winner", now)
+        db.commit()
+        by_outlet = {article.source_id: article for article in db.scalars(select(Article))}
+        by_outlet[b.id].is_duplicate_of_id = by_outlet[a.id].id
+        db.commit()
+        embed_pending(db, FakeEmbedder())
+
+        rebuild_recent(db, FakeEmbedder.name, 0.5, 72, now=now)
+
+        story = db.scalars(select(Story)).one()
+        assert (story.article_count, story.original_count) == (3, 2)
+        assert (story.outlet_count, story.independent_outlet_count) == (3, 2)
+
+
+def test_top_stories_applies_the_publication_rule_and_ranks() -> None:
+    now = datetime.now(UTC)
+
+    def story(title: str, independent: int, originals: int, seen: datetime) -> Story:
+        return Story(
+            title=title,
+            first_seen_at=seen,
+            last_seen_at=seen,
+            article_count=originals,
+            outlet_count=independent,
+            independent_outlet_count=independent,
+            original_count=originals,
+            centroid=[0.0] * 384,
+        )
+
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                story("A", 4, 10, now),
+                story("B", 3, 5, now),
+                story("C", 2, 20, now),
+                story("D", 5, 8, now - timedelta(days=3)),
+            ]
+        )
+        db.commit()
+        ranked = top_stories(db, now - timedelta(hours=24), min_outlets=3, limit=10)
+        assert [s.title for s in ranked] == ["A", "B"]

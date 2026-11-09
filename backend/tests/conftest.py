@@ -37,7 +37,7 @@ def migrated_database() -> None:
 def clean_tables(migrated_database: None) -> None:
     """Every test starts with empty tables."""
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE articles, sources, run_log RESTART IDENTITY CASCADE"))
+        conn.execute(text("TRUNCATE articles, sources, run_log, stories RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture

@@ -20,7 +20,8 @@ def main() -> None:
         for story in stories:
             print(f"\n=== {str(story.id)[:8]}  {story.title[:80]}")
             print(
-                f"    {story.article_count} articles, {story.outlet_count} outlets, "
+                f"    {story.article_count} articles ({story.original_count} original), "
+                f"{story.outlet_count} outlets ({story.independent_outlet_count} independent), "
                 f"{story.first_seen_at:%d %b %H:%M} to {story.last_seen_at:%d %b %H:%M}"
             )
             members = db.execute(

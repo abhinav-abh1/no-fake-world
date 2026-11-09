@@ -23,5 +23,7 @@ class Settings(BaseSettings):
     dedup_same_outlet_minutes: float = 30.0
     dedup_cross_outlet_hours: float = 6.0
 
+    edition_min_outlets: int = 3
+
 
 settings = Settings()

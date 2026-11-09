@@ -7,7 +7,7 @@ import numpy as np
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
 from sqlalchemy import ColumnElement, delete, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.db.models import Article, ArticleEmbedding, RunLog, Story, StoryArticle
 
@@ -21,6 +21,8 @@ class Candidate:
     title: str
     when: datetime
     vector: np.ndarray
+    copy_source_id: uuid.UUID | None = None
+    is_copy: bool = False
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,24 @@ def group_members(candidates: list[Candidate], labels: np.ndarray) -> list[list[
     return list(groups.values())
 
 
+def independent_outlets(members: list[Candidate]) -> int:
+    """Outlets that reprint each other count once: an outlet whose article is a copy of another
+    outlet's article inside the same story is joined to that outlet."""
+    parent = {m.source_id: m.source_id for m in members}
+
+    def find(outlet: uuid.UUID) -> uuid.UUID:
+        while parent[outlet] != outlet:
+            parent[outlet] = parent[parent[outlet]]
+            outlet = parent[outlet]
+        return outlet
+
+    for member in members:
+        other = member.copy_source_id
+        if other is not None and other in parent and other != member.source_id:
+            parent[find(member.source_id)] = find(other)
+    return len({find(outlet) for outlet in parent})
+
+
 def describe(members: list[Candidate]) -> dict[str, Any]:
     """The story fields that come from its articles. The title is the article nearest the
     story's average meaning (a working label, not a neutral headline)."""
@@ -93,6 +113,8 @@ def describe(members: list[Candidate]) -> dict[str, Any]:
         "last_seen_at": max(m.when for m in members),
         "article_count": len(members),
         "outlet_count": len({m.source_id for m in members}),
+        "independent_outlet_count": independent_outlets(members),
+        "original_count": sum(1 for m in members if not m.is_copy),
         "centroid": centroid.tolist(),
     }
 
@@ -100,16 +122,29 @@ def describe(members: list[Candidate]) -> dict[str, Any]:
 def _load(
     db: Session, model_name: str, condition: ColumnElement[bool], include_copies: bool
 ) -> list[Candidate]:
+    parent = aliased(Article)
     stmt = (
-        select(Article.id, Article.source_id, Article.title, WHEN, ArticleEmbedding.embedding)
+        select(
+            Article.id,
+            Article.source_id,
+            Article.title,
+            WHEN,
+            ArticleEmbedding.embedding,
+            parent.source_id,
+            Article.is_duplicate_of_id.is_not(None),
+        )
         .join(ArticleEmbedding, ArticleEmbedding.article_id == Article.id)
+        .outerjoin(parent, parent.id == Article.is_duplicate_of_id)
         .where(ArticleEmbedding.model_name == model_name, condition)
         .order_by(WHEN, Article.id)
     )
     if not include_copies:
         stmt = stmt.where(Article.is_duplicate_of_id.is_(None))
     rows = db.execute(stmt).all()
-    return [Candidate(a, s, t, w, np.asarray(v, dtype=float)) for a, s, t, w, v in rows]
+    return [
+        Candidate(a, s, t, w, np.asarray(v, dtype=float), p, bool(c))
+        for a, s, t, w, v, p, c in rows
+    ]
 
 
 def load_candidates(
