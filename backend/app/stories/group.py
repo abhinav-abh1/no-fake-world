@@ -1,14 +1,17 @@
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import numpy as np
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Article, ArticleEmbedding, RunLog, Story, StoryArticle
+
+WHEN = func.coalesce(Article.published_at, Article.fetched_at)
 
 
 @dataclass(frozen=True)
@@ -26,6 +29,16 @@ class GroupResult:
     articles: int
     largest: int
     singletons: int
+
+
+@dataclass(frozen=True)
+class RebuildResult:
+    candidates: int
+    stories: int
+    kept: int
+    created: int
+    removed: int
+    frozen: int
 
 
 def linkage_tree(vectors: np.ndarray, hours: np.ndarray, window_hours: float) -> np.ndarray:
@@ -60,26 +73,58 @@ def candidate_arrays(candidates: list[Candidate]) -> tuple[np.ndarray, np.ndarra
     return vectors, hours
 
 
-def load_candidates(db: Session, model_name: str, days: int) -> list[Candidate]:
-    """Independent (non-copy) articles that have a vector, from the last `days` days."""
-    when = func.coalesce(Article.published_at, Article.fetched_at)
-    rows = db.execute(
-        select(Article.id, Article.source_id, Article.title, when, ArticleEmbedding.embedding)
+def group_members(candidates: list[Candidate], labels: np.ndarray) -> list[list[Candidate]]:
+    groups: dict[int, list[Candidate]] = {}
+    for candidate, number in zip(candidates, labels.tolist(), strict=True):
+        groups.setdefault(number, []).append(candidate)
+    return list(groups.values())
+
+
+def describe(members: list[Candidate]) -> dict[str, Any]:
+    """The story fields that come from its articles. The title is the article nearest the
+    story's average meaning (a working label, not a neutral headline)."""
+    member_vectors = np.vstack([m.vector for m in members])
+    centroid = member_vectors.mean(axis=0)
+    centroid /= np.linalg.norm(centroid)
+    closest = members[int(np.argmax(member_vectors @ centroid))]
+    return {
+        "title": closest.title,
+        "first_seen_at": min(m.when for m in members),
+        "last_seen_at": max(m.when for m in members),
+        "article_count": len(members),
+        "outlet_count": len({m.source_id for m in members}),
+        "centroid": centroid.tolist(),
+    }
+
+
+def _load(
+    db: Session, model_name: str, condition: ColumnElement[bool], include_copies: bool
+) -> list[Candidate]:
+    stmt = (
+        select(Article.id, Article.source_id, Article.title, WHEN, ArticleEmbedding.embedding)
         .join(ArticleEmbedding, ArticleEmbedding.article_id == Article.id)
-        .where(
-            ArticleEmbedding.model_name == model_name,
-            Article.is_duplicate_of_id.is_(None),
-            when >= datetime.now(UTC) - timedelta(days=days),
-        )
-        .order_by(when, Article.id)
-    ).all()
+        .where(ArticleEmbedding.model_name == model_name, condition)
+        .order_by(WHEN, Article.id)
+    )
+    if not include_copies:
+        stmt = stmt.where(Article.is_duplicate_of_id.is_(None))
+    rows = db.execute(stmt).all()
     return [Candidate(a, s, t, w, np.asarray(v, dtype=float)) for a, s, t, w, v in rows]
+
+
+def load_candidates(
+    db: Session, model_name: str, days: int, include_copies: bool = False
+) -> list[Candidate]:
+    """Articles that have a vector, from the last `days` days (copies left out by default)."""
+    since = datetime.now(UTC) - timedelta(days=days)
+    return _load(db, model_name, WHEN >= since, include_copies)
 
 
 def build_stories(
     db: Session, model_name: str, min_similarity: float, window_hours: float, days: int
 ) -> GroupResult:
-    """Rebuild all stories from scratch. Story ids change on every run; stable ids come later."""
+    """Rebuild ALL stories from scratch. Ids change and old stories vanish: experiments only.
+    Use rebuild_recent for real runs."""
     run = RunLog(job_name="group_stories", status="running")
     db.add(run)
     candidates = load_candidates(db, model_name, days)
@@ -89,23 +134,8 @@ def build_stories(
     if candidates:
         vectors, hours = candidate_arrays(candidates)
         labels = cluster_labels(vectors, hours, min_similarity, window_hours)
-        groups: dict[int, list[Candidate]] = {}
-        for candidate, number in zip(candidates, labels.tolist(), strict=True):
-            groups.setdefault(number, []).append(candidate)
-        for members in groups.values():
-            member_vectors = np.vstack([m.vector for m in members])
-            centroid = member_vectors.mean(axis=0)
-            centroid /= np.linalg.norm(centroid)
-            closest = members[int(np.argmax(member_vectors @ centroid))]
-            story = Story(
-                id=uuid.uuid4(),
-                title=closest.title,  # the article nearest the story's average meaning
-                first_seen_at=min(m.when for m in members),
-                last_seen_at=max(m.when for m in members),
-                article_count=len(members),
-                outlet_count=len({m.source_id for m in members}),
-                centroid=centroid.tolist(),
-            )
+        for members in group_members(candidates, labels):
+            story = Story(id=uuid.uuid4(), **describe(members))
             db.add(story)
             db.add_all(StoryArticle(story_id=story.id, article_id=m.article_id) for m in members)
             sizes.append(len(members))
@@ -120,4 +150,113 @@ def build_stories(
         articles=len(candidates),
         largest=max(sizes, default=0),
         singletons=sum(1 for size in sizes if size == 1),
+    )
+
+
+def match_clusters(
+    groups: list[set[uuid.UUID]],
+    old: dict[uuid.UUID, set[uuid.UUID]],
+    min_share: float = 0.5,
+) -> dict[int, uuid.UUID]:
+    """Which new group continues which old story? A group continues an old story when it holds at
+    least `min_share` of that story's articles, so a story that GROWS keeps its id. Each old story
+    is used once."""
+    scored: list[tuple[float, int, int, uuid.UUID]] = []
+    for index, members in enumerate(groups):
+        for story_id, old_members in old.items():
+            shared = len(members & old_members)
+            if shared and old_members:
+                scored.append((shared / len(old_members), shared, index, story_id))
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    matched: dict[int, uuid.UUID] = {}
+    used: set[uuid.UUID] = set()
+    for share, _, index, story_id in scored:
+        if share < min_share:
+            break
+        if index in matched or story_id in used:
+            continue
+        matched[index] = story_id
+        used.add(story_id)
+    return matched
+
+
+def rebuild_recent(
+    db: Session,
+    model_name: str,
+    min_similarity: float,
+    window_hours: float,
+    buffer_hours: float = 24.0,
+    since: datetime | None = None,
+    now: datetime | None = None,
+) -> RebuildResult:
+    """Regroup only recent articles and keep the ids of stories that continue.
+
+    Stories whose newest article is older than the cutoff are frozen: never changed or deleted.
+    `since` overrides the cutoff to rebuild further back (bootstrapping the history)."""
+    run = RunLog(job_name="rebuild_stories", status="running")
+    db.add(run)
+    now = now or datetime.now(UTC)
+    cutoff = since or now - timedelta(hours=window_hours + buffer_hours)
+
+    open_stories = {s.id: s for s in db.scalars(select(Story).where(Story.last_seen_at >= cutoff))}
+    frozen = db.scalar(select(func.count()).select_from(Story).where(Story.last_seen_at < cutoff))
+    old_members: dict[uuid.UUID, set[uuid.UUID]] = {story_id: set() for story_id in open_stories}
+    if open_stories:
+        rows = db.execute(
+            select(StoryArticle.story_id, StoryArticle.article_id).where(
+                StoryArticle.story_id.in_(list(open_stories))
+            )
+        )
+        for story_id, article_id in rows:
+            old_members[story_id].add(article_id)
+    keep_ids: set[uuid.UUID] = set()
+    for old_ids in old_members.values():
+        keep_ids |= old_ids  # a story that straddles the cutoff is regrouped as a whole
+
+    condition = WHEN >= cutoff
+    if keep_ids:
+        condition = or_(condition, Article.id.in_(keep_ids))
+    candidates = _load(db, model_name, condition, include_copies=True)
+
+    groups: list[list[Candidate]] = []
+    if candidates:
+        vectors, hours = candidate_arrays(candidates)
+        labels = cluster_labels(vectors, hours, min_similarity, window_hours)
+        groups = group_members(candidates, labels)
+
+    matched = match_clusters([{m.article_id for m in g} for g in groups], old_members)
+    if open_stories:
+        db.execute(delete(StoryArticle).where(StoryArticle.story_id.in_(list(open_stories))))
+
+    created = 0
+    for index, members in enumerate(groups):
+        fields = describe(members)
+        matched_id = matched.get(index)
+        if matched_id is None:
+            story = Story(id=uuid.uuid4(), **fields)
+            db.add(story)
+            created += 1
+        else:
+            story = open_stories[matched_id]
+            for name, value in fields.items():
+                setattr(story, name, value)
+        db.add_all(StoryArticle(story_id=story.id, article_id=m.article_id) for m in members)
+
+    used = set(matched.values())
+    removed = [story_id for story_id in open_stories if story_id not in used]
+    for story_id in removed:  # merged into another story or dissolved
+        db.delete(open_stories[story_id])
+
+    run.finished_at = datetime.now(UTC)
+    run.items_in = len(candidates)
+    run.items_out = len(groups)
+    run.status = "ok"
+    db.commit()
+    return RebuildResult(
+        candidates=len(candidates),
+        stories=len(groups),
+        kept=len(matched),
+        created=created,
+        removed=len(removed),
+        frozen=frozen or 0,
     )

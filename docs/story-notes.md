@@ -119,7 +119,7 @@ What I read (top stories by number of outlets, all with 6 or 7 outlets):
   stricter cut, which is the basis for timeline entries (step 5D).
 
 ## Problems found and plan
-1. group_run deletes ALL stories on each run and rebuilds only the last 7 days. Older stories
+1. Fixed in 5C-1: group_run deletes ALL stories on each run and rebuilds only the last 7 days. Older stories
    disappear, ids change on every run, and anything attached to a story (claims, articles) would
    be deleted with it. Do not schedule group_run. Fix in 5C: stable ids, freeze stories older than
    the window, regroup only recent days.
@@ -145,6 +145,23 @@ What I read (top stories by number of outlets, all with 6 or 7 outlets):
   publication rule of 3 outlets.
 - 5D: timelines linking stories over days, developments inside large stories.
 - Move ingestion to a server.
+
+
+## 5C-1: stable story ids (2026-11-09)
+- rebuild_recent regroups only articles from the last 96 hours (72-hour window plus a 24-hour
+  buffer) and the members of stories that are still open. Older stories are frozen: never changed
+  or deleted. A new group keeps the id of an old story when it contains at least half of that
+  story's articles, so a story that grows keeps its id. Copies are now kept inside stories.
+- Bootstrap with --since-days 14: 1,891 articles, 862 stories regrouped (861 kept their ids, 1
+  created), plus 1 frozen older story: 863 stories back to 25 Oct.
+- Stability test: two further runs gave created=0 removed=0 (330 open, 533 frozen), and the ids of
+  the top stories did not change.
+- Stories per day dip on days when collection stopped (31 Oct 13, 1 Nov 40, 5 Nov 32, against
+  about 100 on normal days).
+- Seen: article_count includes copies (a DW pair appears twice in a midterms story), and titles are
+  one outlet's headline.
+- To apply a new threshold to history: rebuild_run --since-days N. group_run deletes everything,
+  so it is for experiments only.
 
 ## Reproduce
     uv run python -m app.dedup.export_pairs --kind story

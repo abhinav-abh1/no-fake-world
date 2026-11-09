@@ -24,3 +24,4 @@ $null = Step "collect" { uv run python -m app.collectors.run }
 $null = Step "extract" { uv run python -m app.collectors.extract_run --limit 20 }
 $null = Step "embed" { uv run --group ml python -m app.embeddings.embed_articles --limit 400 }
 $null = Step "dedup" { uv run python -m app.dedup.mark_run }
+$null = Step "stories" { uv run python -m app.stories.rebuild_run }
