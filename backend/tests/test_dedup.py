@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from app.db.models import Article, Source
 from app.db.session import SessionLocal
 from app.dedup.mark import mark_duplicates
-from app.dedup.similarity import jaccard, shingles
+from app.dedup.similarity import figures_conflict, jaccard, shingles
 from app.embeddings.embed_articles import embed_pending
 from tests.fakes import FakeEmbedder
 
@@ -111,3 +111,31 @@ def test_same_outlet_relisting_minutes_apart_is_a_copy() -> None:
 def test_same_outlet_page_hours_later_is_not_a_copy() -> None:
     _, second = _same_outlet_pair(minutes_apart=180)
     assert second.is_duplicate_of_id is None
+
+
+def test_conflicting_figures_mean_an_update_not_a_copy() -> None:
+    assert figures_conflict("33 killed in strike near Sanaa", "22 killed in strike near Sanaa")
+    assert figures_conflict(
+        "At least six killed, fifteen injured", "At least five killed, about a dozen injured"
+    )
+    assert not figures_conflict("At least five killed", "At least 5 killed")
+    assert not figures_conflict("A three-nation tour", "A three-nation tour on Friday, November 6")
+    assert not figures_conflict("no figures here", "9 killed")
+
+
+def test_same_text_with_different_figures_is_not_marked_as_a_copy() -> None:
+    with SessionLocal() as db:
+        source = Source(name="A", feed_url="https://a.example/rss")
+        db.add(source)
+        db.commit()
+        first = _article(source, 1, "33 killed in strike near the capital", WIRE, 0)
+        second = _article(source, 2, "22 killed in strike near the capital", WIRE, 0)
+        db.add_all([first, second])
+        db.commit()
+        embed_pending(db, FakeEmbedder())
+
+        result = mark_duplicates(db, FakeEmbedder.name, 0.9, 0.5)
+
+        db.refresh(second)
+        assert result.near == 0
+        assert second.is_duplicate_of_id is None

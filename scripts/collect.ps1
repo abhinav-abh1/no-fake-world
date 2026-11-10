@@ -6,6 +6,9 @@ $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
 # The model is already downloaded, so skip network checks and their warnings.
 $env:HF_HUB_OFFLINE = "1"
 
+$env:HF_HUB_VERBOSITY = "error"
+$env:TRANSFORMERS_VERBOSITY = "error"
+
 function Step($label, [scriptblock]$command) {
     & $command *>> $log
     if ($LASTEXITCODE -ne 0) {

@@ -69,6 +69,33 @@ when the verifier later counts independent confirmations.
   open") are no longer hidden.
 - Still open: the "original" is simply the earliest article, even when the later one is an update.
 
+## Audit of the live rule (2026-11-10)
+- I labelled 19 new pairs exported with --marked and found three problems:
+  1. The export ignored the time gate, so it mixed in pairs the rule would not mark. Now the
+     export, marking and evaluation share one function (is_near_copy).
+  2. Two identical pairs were labelled 0 by mistake (a slip); relabelled 1.
+  3. Same-outlet pairs that are updates: Yemen "33 killed" vs "22 killed", Krakow "6 killed" vs
+     "5 killed" (and a version that adds the shooter's ideology). Hiding the other version loses
+     the changed figure, which a fact-checker wants to see.
+- Dedup v3 adds a figures-conflict gate: two texts that both give figures and neither set contains
+  the other (33 vs 22, six/fifteen vs five/dozen) are updates, not copies. A date that appears in
+  only one text is not a conflict (it would have blocked a real cross-outlet reprint of the Pope
+  Leo story). Hypothesis from a handful of pairs, not a measured rule.
+- Labelling question changed from "same piece of writing?" to "would hiding the later article
+  lose anything?". Relabelled accordingly: the changed-toll pairs, the added-sentence pair and a
+  preview vs report pair became 0.
+- Live rule on 96 labelled pairs: precision 0.68, recall 0.83 (recall counts only labelled
+  pairs). Remaining mistakes: 9 false merges and 4 missed copies (tp=19, fp=9, fn=4, tn=64).
+  Six of the 9 false merges are same-outlet pairs 0.0 h apart with cosine above 0.97, three of
+  them Krakow shooting versions. The other 3 are cross-outlet (air traffic, Pope Leo, California
+  billionaire tax). All 4 missed copies are same-outlet pairs 2.7 to 17.6 h apart with cosine
+  above 0.97 (France debt, Mélenchon, Israel vote, US midterms live); the time gate is the likely
+  cause, not yet checked.
+- Two real cross-outlet reprints confirm the independence logic: air traffic (France 24 plus a
+  shorter copy of its text, 1.2 h apart) and Pope Leo (5.6 h apart).
+- Direction for the product: near copies should be grouped for display, not hidden, so updates stay
+  visible. Decide when the search API is built.
+
 ## Mistakes and limits
 - Precision is 16 of 18 on the flagged pairs. I cannot measure recall: I only know about copies
   that were flagged or that happened to be in my labelled pairs.

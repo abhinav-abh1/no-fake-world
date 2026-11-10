@@ -163,7 +163,7 @@ What I read (top stories by number of outlets, all with 6 or 7 outlets):
 - To apply a new threshold to history: rebuild_run --since-days N. group_run deletes everything,
   so it is for experiments only.
 
-## 5C-2: independent outlets and edition ranking (2026-11-08)
+## 5C-2: independent outlets and edition ranking (2026-11-10)
 - New story fields: independent_outlet_count (outlets that reprint each other inside a story count
   once, using the copy flags from dedup) and original_count (articles that are not copies).
 - Publication rule: at least 3 independent outlets. In the last 7 days 93 of 599 stories meet it.
@@ -175,7 +175,16 @@ What I read (top stories by number of outlets, all with 6 or 7 outlets):
   (European air traffic, 6 independent of 7 outlets) has a merged outlet.
 - Test isolation lesson: frozen stories are never deleted, so the test database must be emptied
   between tests; conftest did not truncate stories, which made a test see a leftover story.
-  
+- Results (last 7 days, 599 stories): 412 have 1 independent outlet, 94 have 2, and 93 have 3 or more
+  (31 with 3, 23 with 4, 19 with 5, 9 with 6, 10 with 7, 1 with 8), about 13 edition candidates a day.
+- Merged outlets: only 3 stories have outlets merged by a cross-outlet copy (Pope Leo 6 to 5, air
+  traffic 7 to 6, California tax 2 to 1). My first count (9) was wrong: 6 stories older than 14
+  days kept independent_outlet_count 0 from the migration default.
+- Lesson: a migration that adds a column with a default needs a backfill (rebuild_run --since-days
+  60), and a check that nothing is left at the default (independent_outlet_count = 0 returned 0 rows).
+- 72-hour edition list: the ranking uses independent outlets, then originals, then recency, so a
+  three-day-old story with 7 outlets can outrank a fresher one. A real edition uses a 24-hour window.
+
 ## Reproduce
     uv run python -m app.dedup.export_pairs --kind story
     uv run python -m app.dedup.label --kind story

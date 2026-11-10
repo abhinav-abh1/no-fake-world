@@ -6,7 +6,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import Article, RunLog
-from app.dedup.pairs import find_pairs
+from app.dedup.pairs import PairScore, find_pairs
+from app.dedup.similarity import dedup_text, figures_conflict
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,28 @@ def _order_key(article: Article) -> tuple[datetime, str]:
     return (_when(article), str(article.id))
 
 
+def is_near_copy(
+    pair: PairScore,
+    min_jaccard: float,
+    same_outlet_minutes: float,
+    cross_outlet_hours: float,
+) -> bool:
+    """The copy rule, shared by marking, the labelling export and the evaluation.
+
+    Beyond cosine similarity (checked when pairs are found) a near copy needs: enough shared
+    wording, publication times close together (one outlet listing a page twice does it within
+    minutes, other outlets may reprint hours later) and figures that do not conflict (a changed
+    death toll means an update, which is not safe to hide)."""
+    if pair.jaccard < min_jaccard:
+        return False
+    older, newer = sorted((pair.a, pair.b), key=_order_key)
+    gap_minutes = (_when(newer) - _when(older)).total_seconds() / 60
+    allowed = same_outlet_minutes if older.source_id == newer.source_id else cross_outlet_hours * 60
+    if gap_minutes > allowed:
+        return False
+    return not figures_conflict(dedup_text(older), dedup_text(newer))
+
+
 def mark_duplicates(
     db: Session,
     model_name: str,
@@ -33,12 +56,7 @@ def mark_duplicates(
     same_outlet_minutes: float = 30.0,
     cross_outlet_hours: float = 6.0,
 ) -> DedupResult:
-    """Recompute `is_duplicate_of_id` from scratch. Same data and thresholds, same answer.
-
-    Near copies must also be close in time: one outlet listing a page twice does it within
-    minutes, other outlets may reprint it hours later. A later, different page that reuses an
-    opening sentence (a live blog, then the results page) is not a copy.
-    """
+    """Recompute `is_duplicate_of_id` from scratch. Same data and thresholds, same answer."""
     run = RunLog(job_name="mark_duplicates", status="running")
     db.add(run)
     db.execute(update(Article).values(is_duplicate_of_id=None))
@@ -60,16 +78,11 @@ def mark_duplicates(
             parent[member.id] = members[0].id
     exact = len(parent)
 
-    # 2) Near copies: very close in meaning, sharing most exact wording, and close in time.
+    # 2) Near copies.
     for pair in find_pairs(db, model_name, min_cosine, per_article):
-        if pair.jaccard < min_jaccard:
+        if not is_near_copy(pair, min_jaccard, same_outlet_minutes, cross_outlet_hours):
             continue
         older, newer = sorted((pair.a, pair.b), key=_order_key)
-        gap_minutes = (_when(newer) - _when(older)).total_seconds() / 60
-        same_outlet = older.source_id == newer.source_id
-        allowed = same_outlet_minutes if same_outlet else cross_outlet_hours * 60
-        if gap_minutes > allowed:
-            continue
         parent.setdefault(newer.id, older.id)
 
     def root(article_id: uuid.UUID) -> uuid.UUID:
