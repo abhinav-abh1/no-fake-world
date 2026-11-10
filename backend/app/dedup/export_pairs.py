@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import SessionLocal
+from app.dedup.mark import is_near_copy
 from app.dedup.pairs import find_pairs
 from app.embeddings.model import MODEL_NAME
 
@@ -30,11 +31,16 @@ def export(
                 rows[(row["id_a"], row["id_b"])] = row
 
     candidates = sorted(find_pairs(db, model_name, min_cosine), key=lambda p: -p.cosine)
-    if only_marked:  # pairs the current copy rule marks: label them all to measure precision
+    if only_marked:  # exactly the pairs the live copy rule marks
         candidates = [
-            p
-            for p in candidates
-            if p.cosine >= settings.dedup_min_cosine and p.jaccard >= settings.dedup_min_jaccard
+            pair
+            for pair in candidates
+            if is_near_copy(
+                pair,
+                settings.dedup_min_jaccard,
+                settings.dedup_same_outlet_minutes,
+                settings.dedup_cross_outlet_hours,
+            )
         ]
     new = [p for p in candidates if (str(p.a.id), str(p.b.id)) not in rows]
     room = len(new) if only_marked else max(0, max_pairs - len(rows))
