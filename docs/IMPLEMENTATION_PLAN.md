@@ -922,8 +922,9 @@ If you fall behind, **cut features, not tests**: first drop MCP (Phase 13), then
 7. Write today's date and one sentence "where I am" at the bottom of the **Work log** below.
 8. Continue from the first unticked step. Do not redo finished phases.
 
+
 ### Work log (append one line per session)
- 
+
 | Date | Phase | What I did | What is next |
 |---|---|---|---|
 | 2026-10-24 | 0 | Wrote the full plan and architecture. Installed Git, Node 22, Docker and VS Code; Python 3.13 was installed, so I pinned Python 3.12 with `uv`. Created the private GitHub repo `no-fake-world` and committed the plan, `.env.example` and `docs/limits.md`. Rule: keys never go into Git. | Mark Phase 0 done; FastAPI skeleton |
@@ -947,7 +948,11 @@ If you fall behind, **cut features, not tests**: first drop MCP (Phase 13), then
 | 2026-11-08 | 4B1 fix | Dedup v2: near copies must also be close in time (same outlet within 30 minutes, other outlets within 6 hours), so a results page is no longer hidden behind a live blog. 33 tests. Restored a deleted plan line; `collect.ps1` now skips cleanly when Docker is down. | Merge it; Phase 5C-1: stable story ids |
 | 2026-11-09 | 5C-1 | Stable story ids: stories older than 96 hours are frozen, only recent articles are regrouped, and a new group keeps the id of the old story it contains at least half of. Bootstrapped 14 days (863 stories); two more runs gave created=0 removed=0 and the top ids did not change. Copies are kept inside stories. Story counts per day dip when the laptop was off. `rebuild_run` added to the hourly script. | 5C-2: independent outlets, publication rule, ranking |
 | 2026-11-09 | 5C-2 | Added independent_outlet_count (outlets that reprint each other count once), original_count, a publication rule of 3 independent outlets and a top_stories ranking with a preview command. A failing test exposed that the test database did not empty `stories`, so a frozen story leaked into the next test. | 5D: timelines and developments inside big stories |
-| 2026-11-10 | dedup audit | Audited 19 new pairs: identical pairs mislabelled, the labelling export ignored the time gate, and same-outlet updates with changed figures (Yemen 33 vs 22, Krakow 6 vs 5) were being hidden. Dedup v3: figures-conflict gate, one shared rule function, an evaluation tool. Found 6 old stories with independent_outlet_count 0 (migration default) and backfilled them. | 5D: timelines and developments |
+| 2026-11-09 | dedup audit | Audited 19 new pairs: the labelling export ignored the time gate, two identical pairs were mislabelled, and same-outlet updates with changed figures (Yemen 33 vs 22, Krakow 6 vs 5) were being hidden. Dedup v3: figures-conflict gate, one shared rule function (`is_near_copy`), an evaluation tool. Backfilled 6 stories left at independent_outlet_count 0 by the migration default. | Close dedup |
+| 2026-11-10 | dedup close | Found that "copy" has two meanings (hide-safe for the same outlet, shared origin for other outlets), which made the first evaluation (precision 0.68, recall 0.83) misleading. The label tool now prints the matching rule per pair and evaluation is split by outlet type. Reviewed the 13 mistake pairs and changed 6 labels. Result: same outlet precision 0.84, recall 0.88 (tp 21, fp 4, fn 3, tn 21); other outlet 3 of 47 marked, all 3 real reprints. `mark_run` marks 35 near copies; a 60-day rebuild (2,688 articles, 1,218 stories) changed nothing and the stale-story check returned 0. 41 tests pass. | 5D: story chains |
+
+
+
 ### Decision log (keep each entry short)
 
 | Date | Decision | Reason | Alternatives rejected |
